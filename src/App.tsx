@@ -32,6 +32,7 @@ import { AIAssistantModal } from './components/AIAssistantModal';
 import { CreateActivityModal } from './components/CreateActivityModal';
 import { VoucherWalletModal } from './components/VoucherWalletModal';
 import { EventDetailModal } from './components/EventDetailModal';
+import { AuthView } from './views/AuthView';
 import { WelcomeView } from './views/WelcomeView';
 import { StudentHomeView } from './views/StudentHomeView';
 import { FacultyHomeView } from './views/FacultyHomeView';
@@ -47,10 +48,15 @@ import confetti from 'canvas-confetti';
 
 export default function App() {
   // Navigation & Role State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('cg_is_authenticated') === 'true';
+  });
   const [showWelcome, setShowWelcome] = useState<boolean>(() => {
     return localStorage.getItem('campus_green_welcomed') !== 'true';
   });
-  const [activeRole, setActiveRole] = useState<Role>('STUDENT');
+  const [activeRole, setActiveRole] = useState<Role>(() => {
+    return (localStorage.getItem('cg_active_role') as Role) || 'STUDENT';
+  });
   const [currentTab, setCurrentTab] = useState<NavTab>('home');
   const [frameMode, setFrameMode] = useState<boolean>(true);
 
@@ -58,6 +64,10 @@ export default function App() {
   const [users, setUsers] = useState<Record<string, UserProfile>>(() => {
     const saved = localStorage.getItem('cg_users');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
+  });
+
+  const [currentUserId, setCurrentUserId] = useState<string>(() => {
+    return localStorage.getItem('cg_current_user_id') || users[activeRole]?.id || 'usr-student-01';
   });
 
   const [events, setEvents] = useState<CampusEvent[]>(() => {
@@ -107,7 +117,11 @@ export default function App() {
   // Toast Notification
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'info' | 'error' } | null>(null);
 
-  const currentUser: UserProfile = users[activeRole] || users.STUDENT;
+  // Find active user
+  const currentUser: UserProfile =
+    Object.values(users).find((u) => u.id === currentUserId) ||
+    users[activeRole] ||
+    users.STUDENT;
 
   // Persist State Changes
   useEffect(() => {
@@ -138,6 +152,14 @@ export default function App() {
     localStorage.setItem('cg_txs', JSON.stringify(transactions));
   }, [transactions]);
 
+  useEffect(() => {
+    localStorage.setItem('cg_active_role', activeRole);
+  }, [activeRole]);
+
+  useEffect(() => {
+    localStorage.setItem('cg_current_user_id', currentUserId);
+  }, [currentUserId]);
+
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => {
@@ -148,7 +170,7 @@ export default function App() {
   // Adjust User Points
   const adjustPoints = (amount: number, type: string, description: string) => {
     setUsers((prev) => {
-      const u = prev[activeRole];
+      const u = prev[activeRole] || currentUser;
       const newPoints = Math.max(0, u.points + amount);
       const newLifetime = amount > 0 ? u.lifetimePoints + amount : u.lifetimePoints;
 
@@ -171,19 +193,22 @@ export default function App() {
         nextLvl = 1200;
       }
 
+      const updatedUser = {
+        ...u,
+        points: newPoints,
+        lifetimePoints: newLifetime,
+        level: {
+          id: lvlId,
+          title: lvlTitle,
+          minPoints: lvlId === 1 ? 0 : lvlId === 2 ? 500 : lvlId === 3 ? 1200 : 3000,
+          nextLevelPoints: nextLvl,
+        },
+      };
+
       return {
         ...prev,
-        [activeRole]: {
-          ...u,
-          points: newPoints,
-          lifetimePoints: newLifetime,
-          level: {
-            id: lvlId,
-            title: lvlTitle,
-            minPoints: lvlId === 1 ? 0 : lvlId === 2 ? 500 : lvlId === 3 ? 1200 : 3000,
-            nextLevelPoints: nextLvl,
-          },
-        },
+        [activeRole]: updatedUser,
+        [u.id]: updatedUser,
       };
     });
 
@@ -198,6 +223,41 @@ export default function App() {
     setTransactions((prev) => [newTx, ...prev]);
   };
 
+  // Login Handler
+  const handleLogin = (user: UserProfile) => {
+    setIsAuthenticated(true);
+    localStorage.setItem('cg_is_authenticated', 'true');
+    setCurrentUserId(user.id);
+    setActiveRole(user.role);
+    setShowWelcome(false);
+    localStorage.setItem('campus_green_welcomed', 'true');
+    showToast(`Welcome back, ${user.name}!`);
+  };
+
+  // Register Handler
+  const handleRegister = (newUser: UserProfile) => {
+    setUsers((prev) => ({
+      ...prev,
+      [newUser.role]: newUser,
+      [newUser.id]: newUser,
+    }));
+    setIsAuthenticated(true);
+    localStorage.setItem('cg_is_authenticated', 'true');
+    setCurrentUserId(newUser.id);
+    setActiveRole(newUser.role);
+    setShowWelcome(false);
+    localStorage.setItem('campus_green_welcomed', 'true');
+    showToast(`Account created! Welcome to Campus Green, ${newUser.name}! (+100 Pts)`);
+  };
+
+  // Logout Handler
+  const handleLogout = () => {
+    sounds.playClick();
+    setIsAuthenticated(false);
+    localStorage.removeItem('cg_is_authenticated');
+    showToast('Signed out of Campus Green.');
+  };
+
   // Event Registration Concurrency Handler
   const handleToggleEventRegistration = (eventId: string) => {
     const target = events.find((e) => e.id === eventId);
@@ -209,7 +269,6 @@ export default function App() {
         return;
       }
 
-      // Concurrency increment
       setEvents((prev) =>
         prev.map((e) =>
           e.id === eventId
@@ -227,14 +286,12 @@ export default function App() {
       });
       showToast(`Registered for ${target.title}! (+${target.pointsValue} Pts)`);
 
-      // Update selectedDetailEvent if open
       if (selectedDetailEvent?.id === eventId) {
         setSelectedDetailEvent((prev) =>
           prev ? { ...prev, currentParticipants: prev.currentParticipants + 1, isRegistered: true } : null
         );
       }
     } else {
-      // Unregister
       setEvents((prev) =>
         prev.map((e) =>
           e.id === eventId
@@ -264,15 +321,12 @@ export default function App() {
       return;
     }
 
-    // Atomic decrement reward stock
     setRewards((prev) =>
       prev.map((r) => (r.id === reward.id ? { ...r, stock: r.stock - 1 } : r))
     );
 
-    // Deduct user balance
     adjustPoints(-reward.pointCost, 'REDEEMED_REWARD', `Redeemed item: ${reward.title}`);
 
-    // Generate Voucher Code
     const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     const claimCode = `CG-${randomHex}${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -376,13 +430,13 @@ export default function App() {
           frameMode ? 'max-w-[420px]' : 'max-w-2xl'
         }`}
       >
-        {/* Device Header Bar */}
+        {/* Device Status Bar */}
         <div className="bg-slate-950 text-slate-200 px-5 pt-3 pb-1 flex justify-between items-center text-xs font-semibold shrink-0 select-none border-b border-slate-900">
           <span className="font-mono text-[11px] text-slate-400">09:41</span>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[10px] text-emerald-400 font-extrabold tracking-wider uppercase">
-              {activeRole} MODE
+              {isAuthenticated ? `${activeRole} MODE` : 'LOGIN REQUIRED'}
             </span>
           </div>
           <span className="text-[10px] font-mono text-slate-400">100% ⚡</span>
@@ -398,11 +452,22 @@ export default function App() {
           </div>
         )}
 
-        {/* Main Application Body */}
-        {showWelcome ? (
+        {/* Authentication Flow / Main App */}
+        {!isAuthenticated ? (
+          <AuthView
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            existingUsers={users}
+          />
+        ) : showWelcome ? (
           <WelcomeView
             selectedRole={activeRole}
-            onSelectRole={(r) => setActiveRole(r)}
+            onSelectRole={(r) => {
+              setActiveRole(r);
+              if (users[r]) {
+                setCurrentUserId(users[r].id);
+              }
+            }}
             onContinue={() => {
               localStorage.setItem('campus_green_welcomed', 'true');
               setShowWelcome(false);
@@ -417,6 +482,9 @@ export default function App() {
               activeRole={activeRole}
               onRoleChange={(r) => {
                 setActiveRole(r);
+                if (users[r]) {
+                  setCurrentUserId(users[r].id);
+                }
                 setCurrentTab('home');
                 showToast(`Switched stakeholder profile to ${r}`);
               }}
@@ -424,6 +492,7 @@ export default function App() {
               onToggleFrameMode={() => setFrameMode(!frameMode)}
               onOpenStore={() => setCurrentTab('rewards')}
               onOpenWallet={() => setShowWalletModal(true)}
+              onLogout={handleLogout}
               voucherCount={vouchers.filter((v) => !v.isClaimed).length}
             />
 

@@ -9,6 +9,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: Role;
   department: string;
   departmentCode: string;

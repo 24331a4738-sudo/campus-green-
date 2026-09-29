@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Role, UserProfile } from '../types';
-import { Sparkles, Smartphone, Monitor, Ticket, Coins } from 'lucide-react';
+import { Sparkles, Smartphone, Monitor, Ticket, Coins, LogOut, User, Flame, ChevronDown } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
   onToggleFrameMode: () => void;
   onOpenStore: () => void;
   onOpenWallet: () => void;
+  onLogout: () => void;
   voucherCount: number;
 }
 
@@ -22,10 +23,24 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleFrameMode,
   onOpenStore,
   onOpenWallet,
+  onLogout,
   voucherCount,
 }) => {
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white px-3 py-2.5 flex items-center justify-between text-xs sticky top-0 z-30 select-none shadow-sm">
+    <header className="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white px-3 py-2 flex items-center justify-between text-xs sticky top-0 z-30 select-none shadow-sm">
       {/* Brand & Status */}
       <div className="flex items-center gap-2">
         <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20 text-slate-950 font-black text-sm">
@@ -91,6 +106,72 @@ export const Header: React.FC<HeaderProps> = ({
           <span>{user.points}</span>
           <span className="text-[10px] text-amber-400/80 hidden xs:inline">Pts</span>
         </button>
+
+        {/* User Profile & Logout Dropdown Menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setShowProfileMenu(!showProfileMenu);
+            }}
+            className="w-7 h-7 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-xs font-black text-emerald-400 overflow-hidden transition active:scale-95"
+            title="Account Menu"
+          >
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              <span>{user.name.charAt(0)}</span>
+            )}
+          </button>
+
+          {/* Profile Dropdown Popup */}
+          {showProfileMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-2xl p-3 shadow-2xl z-50 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="pb-2.5 border-b border-slate-800">
+                <p className="font-extrabold text-white text-xs truncate">{user.name}</p>
+                <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="bg-emerald-500/20 text-emerald-300 text-[9px] font-bold px-1.5 py-0.2 rounded border border-emerald-500/30">
+                    {user.role}
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate">• {user.departmentCode}</span>
+                </div>
+              </div>
+
+              <div className="py-2 space-y-1.5 text-[11px] text-slate-300">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Eco-Points:</span>
+                  <span className="font-bold text-amber-400">{user.points} Pts</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Streak:</span>
+                  <span className="font-bold text-emerald-400 flex items-center gap-0.5">
+                    <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    <span>{user.streak} Days</span>
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Level:</span>
+                  <span className="font-bold text-slate-200">Lvl {user.level.id} ({user.level.title})</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <button
+                  onClick={() => {
+                    sounds.playClick();
+                    setShowProfileMenu(false);
+                    onLogout();
+                  }}
+                  className="w-full bg-rose-950/70 hover:bg-rose-900 text-rose-300 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition border border-rose-800/60"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Log Out of Account</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Frame Toggle */}
         <button
