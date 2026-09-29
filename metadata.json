@@ -1,0 +1,6 @@
+{
+  "name": "Campus Green",
+  "description": "Production campus sustainability platform uniting students, faculty, and staff to drive eco actions, track maintenance, join drives, and earn green rewards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
