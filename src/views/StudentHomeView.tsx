@@ -1,17 +1,18 @@
 import React from 'react';
 import { UserProfile, CampusEvent, ResourceItem } from '../types';
-import { Calendar, Award, BookOpen, Gift, Scan, Mic, ArrowRight, Flame, Download, CheckCircle, ExternalLink } from 'lucide-react';
+import { Calendar, Award, BookOpen, Gift, Scan, Mic, ArrowRight, Flame, Download, CheckCircle, MapPin, Map, Sparkles } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface StudentHomeViewProps {
   user: UserProfile;
   events: CampusEvent[];
   resources: ResourceItem[];
-  onNavigateTab: (tab: 'events' | 'resources' | 'rewards' | 'impact') => void;
+  onNavigateTab: (tab: 'home' | 'map' | 'events' | 'resources' | 'rewards' | 'impact') => void;
   onOpenQRScanner: () => void;
   onOpenVoiceModal: () => void;
   onOpenQuiz: () => void;
   onToggleDrive: (eventId: string) => void;
+  onSelectEventDetail: (event: CampusEvent) => void;
   onDownloadResource: (title: string) => void;
 }
 
@@ -24,6 +25,7 @@ export const StudentHomeView: React.FC<StudentHomeViewProps> = ({
   onOpenVoiceModal,
   onOpenQuiz,
   onToggleDrive,
+  onSelectEventDetail,
   onDownloadResource,
 }) => {
   const featuredEvent = events[0] || null;
@@ -135,16 +137,27 @@ export const StudentHomeView: React.FC<StudentHomeViewProps> = ({
       </div>
 
       {/* Hardware Quick Action Buttons */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => {
             sounds.playClick();
             onOpenQRScanner();
           }}
-          className="bg-slate-900 hover:bg-slate-800 text-emerald-400 p-3 rounded-2xl border border-slate-800 shadow-sm text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95"
+          className="bg-slate-900 hover:bg-slate-800 text-emerald-400 p-2.5 rounded-2xl border border-slate-800 shadow-sm text-xs font-bold flex flex-col items-center justify-center gap-1 transition active:scale-95"
         >
           <Scan className="w-4 h-4 text-emerald-400" />
-          <span>Scan Bin / QR</span>
+          <span>Scan Hardware</span>
+        </button>
+
+        <button
+          onClick={() => {
+            sounds.playClick();
+            onNavigateTab('map');
+          }}
+          className="bg-slate-900 hover:bg-slate-800 text-cyan-400 p-2.5 rounded-2xl border border-slate-800 shadow-sm text-xs font-bold flex flex-col items-center justify-center gap-1 transition active:scale-95"
+        >
+          <Map className="w-4 h-4 text-cyan-400" />
+          <span>Campus Map</span>
         </button>
 
         <button
@@ -152,10 +165,10 @@ export const StudentHomeView: React.FC<StudentHomeViewProps> = ({
             sounds.playClick();
             onOpenVoiceModal();
           }}
-          className="bg-slate-900 hover:bg-slate-800 text-amber-400 p-3 rounded-2xl border border-slate-800 shadow-sm text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95"
+          className="bg-slate-900 hover:bg-slate-800 text-amber-400 p-2.5 rounded-2xl border border-slate-800 shadow-sm text-xs font-bold flex flex-col items-center justify-center gap-1 transition active:scale-95"
         >
           <Mic className="w-4 h-4 text-amber-400" />
-          <span>Voice Issue (+25)</span>
+          <span>Voice Issue</span>
         </button>
       </div>
 
@@ -175,7 +188,13 @@ export const StudentHomeView: React.FC<StudentHomeViewProps> = ({
                 <span className="bg-emerald-400/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/30">
                   {featuredEvent.category}
                 </span>
-                <h4 className="font-extrabold text-sm sm:text-base text-white mt-1">
+                <h4
+                  onClick={() => {
+                    sounds.playClick();
+                    onSelectEventDetail(featuredEvent);
+                  }}
+                  className="font-extrabold text-sm sm:text-base text-white mt-1 cursor-pointer hover:underline"
+                >
                   {featuredEvent.title}
                 </h4>
               </div>
@@ -208,30 +227,42 @@ export const StudentHomeView: React.FC<StudentHomeViewProps> = ({
               </div>
             </div>
 
-            {/* Join Button */}
-            <button
-              onClick={() => {
-                sounds.playClick();
-                onToggleDrive(featuredEvent.id);
-              }}
-              className={`w-full py-2.5 rounded-xl text-xs font-black transition shadow flex items-center justify-center gap-1.5 active:scale-95 ${
-                featuredEvent.isRegistered
-                  ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
-                  : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
-              }`}
-            >
-              {featuredEvent.isRegistered ? (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span>REGISTERED (+50 PTS CREDITED)</span>
-                </>
-              ) : (
-                <>
-                  <span>JOIN DRIVE (+50 PTS)</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+            {/* Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  onSelectEventDetail(featuredEvent);
+                }}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1 transition"
+              >
+                <span>View Details</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  onToggleDrive(featuredEvent.id);
+                }}
+                className={`py-2 rounded-xl text-xs font-black transition shadow flex items-center justify-center gap-1.5 active:scale-95 ${
+                  featuredEvent.isRegistered
+                    ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                    : 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
+                }`}
+              >
+                {featuredEvent.isRegistered ? (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>Registered</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Join Drive</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

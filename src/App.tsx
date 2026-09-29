@@ -31,6 +31,7 @@ import { EcoQuizModal } from './components/EcoQuizModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
 import { CreateActivityModal } from './components/CreateActivityModal';
 import { VoucherWalletModal } from './components/VoucherWalletModal';
+import { EventDetailModal } from './components/EventDetailModal';
 import { WelcomeView } from './views/WelcomeView';
 import { StudentHomeView } from './views/StudentHomeView';
 import { FacultyHomeView } from './views/FacultyHomeView';
@@ -39,6 +40,7 @@ import { EventsView } from './views/EventsView';
 import { ResourcesView } from './views/ResourcesView';
 import { RewardsStoreView } from './views/RewardsStoreView';
 import { ImpactDashboardView } from './views/ImpactDashboardView';
+import { CampusMapView } from './views/CampusMapView';
 import { AdminView } from './views/AdminView';
 import { sounds } from './utils/audio';
 import confetti from 'canvas-confetti';
@@ -90,6 +92,9 @@ export default function App() {
       { id: 'tx-02', amount: 50, type: 'EARNED_MAINTENANCE_SCAN', description: 'Verified Compost Bin #04 Deposit', timestamp: '2 days ago' },
     ];
   });
+
+  // Selected Detail Event for Event Modal
+  const [selectedDetailEvent, setSelectedDetailEvent] = useState<CampusEvent | null>(null);
 
   // Modals State
   const [showVoiceModal, setShowVoiceModal] = useState<boolean>(false);
@@ -221,6 +226,13 @@ export default function App() {
         colors: ['#10b981', '#34d399', '#f59e0b'],
       });
       showToast(`Registered for ${target.title}! (+${target.pointsValue} Pts)`);
+
+      // Update selectedDetailEvent if open
+      if (selectedDetailEvent?.id === eventId) {
+        setSelectedDetailEvent((prev) =>
+          prev ? { ...prev, currentParticipants: prev.currentParticipants + 1, isRegistered: true } : null
+        );
+      }
     } else {
       // Unregister
       setEvents((prev) =>
@@ -232,6 +244,12 @@ export default function App() {
       );
       adjustPoints(-target.pointsValue, 'ADMIN_ADJUSTMENT', `Cancelled Drive: ${target.title}`);
       showToast(`Cancelled registration for ${target.title}.`);
+
+      if (selectedDetailEvent?.id === eventId) {
+        setSelectedDetailEvent((prev) =>
+          prev ? { ...prev, currentParticipants: Math.max(0, prev.currentParticipants - 1), isRegistered: false } : null
+        );
+      }
     }
   };
 
@@ -266,6 +284,7 @@ export default function App() {
       pointsPaid: reward.pointCost,
       redeemedAt: 'Just now',
       isClaimed: false,
+      pickupLocation: reward.pickupLocation || 'Student Union Helpdesk',
     };
 
     setVouchers((prev) => [newVoucher, ...prev]);
@@ -286,6 +305,8 @@ export default function App() {
     description: string;
     priority: ReportPriority;
     voiceTranscript: string;
+    audioUrl?: string;
+    photoUrl?: string;
   }) => {
     const newReport: MaintenanceReport = {
       id: `rep-${Date.now()}`,
@@ -297,6 +318,8 @@ export default function App() {
       reportedBy: currentUser.name,
       reportedAt: 'Just now',
       voiceMemoTranscript: data.voiceTranscript,
+      audioUrl: data.audioUrl,
+      photoUrl: data.photoUrl,
     };
 
     setReports((prev) => [newReport, ...prev]);
@@ -313,7 +336,7 @@ export default function App() {
   // Eco Quiz Complete Handler
   const handleQuizComplete = (pointsEarned: number) => {
     adjustPoints(pointsEarned, 'EARNED_CHALLENGE', 'Completed weekly Campus Eco Quiz');
-    showToast(`Completed Eco Quiz with flying colors! (+${pointsEarned} Pts)`);
+    showToast(`Completed Eco Quiz! (+${pointsEarned} Pts awarded)`);
   };
 
   // Faculty/Admin Create Activity
@@ -350,7 +373,7 @@ export default function App() {
       {/* Container Frame */}
       <div
         className={`w-full transition-all duration-300 bg-slate-950 sm:rounded-[40px] shadow-2xl relative border-0 sm:border-[8px] border-slate-800 flex flex-col overflow-hidden h-[100vh] sm:h-[840px] ${
-          frameMode ? 'max-w-[410px]' : 'max-w-2xl'
+          frameMode ? 'max-w-[420px]' : 'max-w-2xl'
         }`}
       >
         {/* Device Header Bar */}
@@ -358,7 +381,7 @@ export default function App() {
           <span className="font-mono text-[11px] text-slate-400">09:41</span>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] text-emerald-400 font-extrabold tracking-wider">
+            <span className="text-[10px] text-emerald-400 font-extrabold tracking-wider uppercase">
               {activeRole} MODE
             </span>
           </div>
@@ -419,6 +442,7 @@ export default function App() {
                       onOpenVoiceModal={() => setShowVoiceModal(true)}
                       onOpenQuiz={() => setShowQuizModal(true)}
                       onToggleDrive={handleToggleEventRegistration}
+                      onSelectEventDetail={(evt) => setSelectedDetailEvent(evt)}
                       onDownloadResource={(title) => {
                         sounds.playClick();
                         showToast(`Downloaded "${title}" to device.`);
@@ -444,9 +468,17 @@ export default function App() {
                       reports={reports}
                       onOpenQRScanner={() => setShowQRModal(true)}
                       onOpenVoiceModal={() => setShowVoiceModal(true)}
-                      onUpdateReportStatus={(id, status) => {
+                      onUpdateReportStatus={(id, status, staffNote) => {
                         setReports((prev) =>
-                          prev.map((r) => (r.id === id ? { ...r, status } : r))
+                          prev.map((r) =>
+                            r.id === id
+                              ? {
+                                  ...r,
+                                  status,
+                                  staffNotes: staffNote || r.staffNotes,
+                                }
+                              : r
+                          )
                         );
                         showToast(`Report updated to ${status}.`);
                       }}
@@ -470,6 +502,18 @@ export default function App() {
                 </>
               )}
 
+              {/* Tab: Campus Map */}
+              {currentTab === 'map' && (
+                <CampusMapView
+                  onScanStation={(name, points) => {
+                    handleQRScanSuccess(points, name);
+                  }}
+                  onReportStationIssue={(loc, cat) => {
+                    setShowVoiceModal(true);
+                  }}
+                />
+              )}
+
               {/* Tab: Events */}
               {currentTab === 'events' && (
                 <EventsView
@@ -477,6 +521,7 @@ export default function App() {
                   onToggleRegistration={handleToggleEventRegistration}
                   canCreateEvent={activeRole === 'FACULTY' || activeRole === 'ADMIN'}
                   onOpenCreateModal={() => setShowCreateModal(true)}
+                  onSelectEventDetail={(evt) => setSelectedDetailEvent(evt)}
                 />
               )}
 
@@ -588,6 +633,15 @@ export default function App() {
           );
           showToast('Voucher verified and redeemed at campus bookstore desk!');
         }}
+      />
+
+      {/* Event Details & Digital Pass Modal */}
+      <EventDetailModal
+        event={selectedDetailEvent}
+        isOpen={!!selectedDetailEvent}
+        onClose={() => setSelectedDetailEvent(null)}
+        onToggleRegistration={handleToggleEventRegistration}
+        userName={currentUser.name}
       />
     </div>
   );

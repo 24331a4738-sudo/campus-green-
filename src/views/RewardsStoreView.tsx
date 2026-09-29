@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile, RewardItem, Badge } from '../types';
-import { Gift, Coins, Award, CheckCircle2, Ticket, Sparkles, AlertCircle } from 'lucide-react';
+import { Gift, Coins, Award, CheckCircle2, Ticket, Sparkles, MapPin, Search } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface RewardsStoreViewProps {
@@ -18,11 +18,24 @@ export const RewardsStoreView: React.FC<RewardsStoreViewProps> = ({
   onOpenWallet,
   voucherCount,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [search, setSearch] = useState<string>('');
+
   const nextLvlTarget = user.level.nextLevelPoints;
   const progressPercent = Math.min(
     100,
     Math.round(((user.points - user.level.minPoints) / (nextLvlTarget - user.level.minPoints)) * 100)
   );
+
+  const categories = ['ALL', 'Merchandise', 'Dining', 'Electronics', 'Apparel', 'Gardening'];
+
+  const filteredRewards = rewards.filter((r) => {
+    const matchesCat = selectedCategory === 'ALL' || r.category === selectedCategory;
+    const matchesSearch =
+      r.title.toLowerCase().includes(search.toLowerCase()) ||
+      r.description.toLowerCase().includes(search.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
 
   return (
     <div className="p-3.5 sm:p-4 space-y-4 overflow-y-auto">
@@ -110,76 +123,96 @@ export const RewardsStoreView: React.FC<RewardsStoreViewProps> = ({
         </div>
       </div>
 
+      {/* Category Filter Chips */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar text-xs">
+        {categories.map((c) => (
+          <button
+            key={c}
+            onClick={() => {
+              sounds.playClick();
+              setSelectedCategory(c);
+            }}
+            className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
+              selectedCategory === c
+                ? 'bg-slate-900 text-emerald-300 shadow'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {c === 'ALL' ? 'All Rewards' : c}
+          </button>
+        ))}
+      </div>
+
       {/* Catalog of Redeemable Rewards */}
-      <div>
-        <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
-          Campus Merchandise & Passes
-        </h3>
+      <div className="space-y-3">
+        {filteredRewards.map((reward) => {
+          const canAfford = user.points >= reward.pointCost;
+          const inStock = reward.stock > 0;
 
-        <div className="space-y-3">
-          {rewards.map((reward) => {
-            const canAfford = user.points >= reward.pointCost;
-            const inStock = reward.stock > 0;
-
-            return (
-              <div
-                key={reward.id}
-                className="bg-white rounded-3xl p-3.5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-emerald-300 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={reward.imageUrl}
-                    alt={reward.title}
-                    className="w-16 h-16 rounded-2xl object-cover shrink-0 border border-slate-100 shadow-sm"
-                  />
-                  <div>
+          return (
+            <div
+              key={reward.id}
+              className="bg-white rounded-3xl p-3.5 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-emerald-300 transition"
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  src={reward.imageUrl}
+                  alt={reward.title}
+                  className="w-16 h-16 rounded-2xl object-cover shrink-0 border border-slate-100 shadow-sm"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5">
                     <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.2 rounded">
                       {reward.category}
                     </span>
-                    <h4 className="font-extrabold text-sm text-slate-900 leading-snug mt-0.5">
-                      {reward.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-medium">
-                      {reward.description}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-black text-amber-600">
-                        {reward.pointCost} Eco-Points
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        • {reward.stock} in stock
-                      </span>
-                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      • {reward.stock} available
+                    </span>
                   </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    sounds.playClick();
-                    onRedeemReward(reward);
-                  }}
-                  disabled={!canAfford || !inStock}
-                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition shadow flex items-center justify-center gap-1.5 shrink-0 active:scale-95 ${
-                    !inStock
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                      : canAfford
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-200'
-                  }`}
-                >
-                  <Gift className="w-3.5 h-3.5" />
-                  <span>
-                    {!inStock
-                      ? 'Out of Stock'
-                      : canAfford
-                      ? 'Redeem Voucher'
-                      : `Need ${reward.pointCost - user.points} more`}
+                  <h4 className="font-extrabold text-sm text-slate-900 leading-snug mt-0.5">
+                    {reward.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-medium">
+                    {reward.description}
+                  </p>
+                  {reward.pickupLocation && (
+                    <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3 text-emerald-600" />
+                      <span>{reward.pickupLocation}</span>
+                    </p>
+                  )}
+                  <span className="text-xs font-black text-amber-600 block mt-1">
+                    {reward.pointCost} Eco-Points
                   </span>
-                </button>
+                </div>
               </div>
-            );
-          })}
-        </div>
+
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  onRedeemReward(reward);
+                }}
+                disabled={!canAfford || !inStock}
+                className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-black transition shadow flex items-center justify-center gap-1.5 shrink-0 active:scale-95 ${
+                  !inStock
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : canAfford
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                    : 'bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span>
+                  {!inStock
+                    ? 'Out of Stock'
+                    : canAfford
+                    ? 'Redeem Voucher'
+                    : `Need ${reward.pointCost - user.points} more`}
+                </span>
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

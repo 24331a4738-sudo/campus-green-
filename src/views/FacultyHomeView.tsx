@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile, CampusEvent } from '../types';
-import { BookOpen, PlusCircle, BarChart3, Sparkles, CheckCircle2, Clock, Users, ArrowRight } from 'lucide-react';
+import { BookOpen, PlusCircle, BarChart3, Sparkles, CheckCircle2, Clock, Users, ArrowRight, Map, UserPlus, Award } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface FacultyHomeViewProps {
   user: UserProfile;
   events: CampusEvent[];
-  onNavigateTab: (tab: 'events' | 'resources' | 'rewards' | 'impact') => void;
+  onNavigateTab: (tab: 'home' | 'map' | 'events' | 'resources' | 'rewards' | 'impact') => void;
   onOpenCreateActivity: () => void;
   onOpenAI: () => void;
   onApproveStudentAction: (studentName: string, actionDesc: string) => void;
@@ -20,6 +20,21 @@ export const FacultyHomeView: React.FC<FacultyHomeViewProps> = ({
   onOpenAI,
   onApproveStudentAction,
 }) => {
+  const [studentRoster, setStudentRoster] = useState([
+    { id: 'st-1', name: 'Liam K.', role: 'Sophomore — CSE', task: '15-min Solar Inverter Telemetry Log', approved: false },
+    { id: 'st-2', name: 'Maya S.', role: 'Junior — Environmental', task: 'Native Shrub Census & Soil Test', approved: false },
+    { id: 'st-3', name: 'Devon R.', role: 'Senior — Mechanical', task: 'Cafeteria Compost Sieve Analysis', approved: true },
+    { id: 'st-4', name: 'Chloe T.', role: 'Freshman — Biology', task: 'Campus Monarch Waystation Census', approved: false },
+  ]);
+
+  const handleApprove = (id: string, name: string, task: string) => {
+    sounds.playSuccess();
+    setStudentRoster((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, approved: true } : s))
+    );
+    onApproveStudentAction(name, task);
+  };
+
   return (
     <div className="p-3.5 sm:p-4 space-y-4 overflow-y-auto">
       {/* Faculty Hero Card */}
@@ -69,14 +84,14 @@ export const FacultyHomeView: React.FC<FacultyHomeViewProps> = ({
         <button
           onClick={() => {
             sounds.playClick();
-            onNavigateTab('impact');
+            onNavigateTab('map');
           }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white p-3.5 rounded-2xl text-left flex flex-col justify-between h-24 sm:h-28 shadow-sm transition active:scale-98"
         >
-          <BarChart3 className="w-5 h-5 text-indigo-200" />
+          <Map className="w-5 h-5 text-indigo-200" />
           <div>
-            <p className="font-bold text-xs sm:text-sm">Reports & Data</p>
-            <p className="text-[10px] text-indigo-100">Impact Analytics</p>
+            <p className="font-bold text-xs sm:text-sm">Campus Eco Map</p>
+            <p className="text-[10px] text-indigo-100">Station Status & Sensors</p>
           </div>
         </button>
 
@@ -141,48 +156,48 @@ export const FacultyHomeView: React.FC<FacultyHomeViewProps> = ({
 
       {/* Student Field Verification Queue */}
       <div>
-        <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
-          Pending Field Approvals
-        </h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+            Student Field Submissions Verification
+          </h3>
+          <span className="text-[10px] text-slate-400 font-bold">
+            {studentRoster.filter((s) => !s.approved).length} Pending
+          </span>
+        </div>
 
         <div className="space-y-2">
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">Liam K. (Sophomore)</span>
-                <span className="text-[9px] text-slate-400">• 25m ago</span>
-              </div>
-              <p className="text-[11px] text-slate-600">Completed 15-min Solar Inverter Log</p>
-            </div>
-            <button
-              onClick={() => {
-                sounds.playSuccess();
-                onApproveStudentAction('Liam K.', 'Solar Inverter Log');
-              }}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl shadow transition"
+          {studentRoster.map((student) => (
+            <div
+              key={student.id}
+              className={`p-3 rounded-2xl border shadow-sm flex items-center justify-between transition ${
+                student.approved
+                  ? 'bg-slate-50/80 border-slate-200 opacity-75'
+                  : 'bg-white border-emerald-300'
+              }`}
             >
-              Approve (+40 Pts)
-            </button>
-          </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-900">{student.name}</span>
+                  <span className="text-[9px] text-slate-400">• {student.role}</span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-0.5">{student.task}</p>
+              </div>
 
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">Maya S. (Junior)</span>
-                <span className="text-[9px] text-slate-400">• 1h ago</span>
-              </div>
-              <p className="text-[11px] text-slate-600">Submitted Native Shrub Census Sheet</p>
+              {student.approved ? (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-xl flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Verified (+40)</span>
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleApprove(student.id, student.name, student.task)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] px-3 py-1.5 rounded-xl shadow transition active:scale-95"
+                >
+                  Approve (+40 Pts)
+                </button>
+              )}
             </div>
-            <button
-              onClick={() => {
-                sounds.playSuccess();
-                onApproveStudentAction('Maya S.', 'Native Shrub Census');
-              }}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl shadow transition"
-            >
-              Approve (+50 Pts)
-            </button>
-          </div>
+          ))}
         </div>
       </div>
     </div>

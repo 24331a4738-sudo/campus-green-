@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, X, Bot, User, RefreshCw } from 'lucide-react';
+import { Sparkles, Send, X, Bot, User, RefreshCw, Volume2, VolumeX, Copy, Trash2 } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface Message {
@@ -21,13 +21,14 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     {
       id: 'welcome-01',
       sender: 'bot',
-      text: `Hello! I am your Campus Green AI sustainability advisor. Ask me anything about waste sorting protocols, SDG curriculum integration, tree plantation drives, or how to earn eco-points!`,
+      text: `Hello! I am your Campus Green AI sustainability advisor. Ask me anything about waste sorting protocols, SDG curriculum integration, tree plantation drives, or how to maximize your eco-points balance!`,
       sdgReferences: ['SDG 12: Responsible Consumption', 'SDG 13: Climate Action'],
       timestamp: 'Just now',
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,7 +37,39 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     }
   }, [messages, isOpen]);
 
+  // Clean up speech synthesis on close
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   if (!isOpen) return null;
+
+  const speakText = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text.replace(/[•*#]/g, ''));
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const copyText = (text: string) => {
+    navigator.clipboard?.writeText(text);
+    sounds.playClick();
+  };
 
   const handleSend = async (queryText?: string) => {
     const textToSend = queryText || input;
@@ -80,7 +113,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
       let fallbackText = "Campus Green connects campus behaviors to UN Sustainable Development Goals (SDG 12 & SDG 13). Blue bins accept clean plastics/paper; Green bins accept cafeteria organic compost; Yellow stations handle e-waste.";
       const lower = textToSend.toLowerCase();
       if (lower.includes('recycle') || lower.includes('bin') || lower.includes('waste')) {
-        fallbackText = "Campus Recycling Protocols:\n• Blue Bins: Clean plastics (PET 1, HDPE 2) & flattened paper.\n• Green Bins: Strictly food leftovers, fruit rinds & compostable cafeteria napkins.\n• Yellow Stations: E-waste, batteries & charging cables at the Library quad.";
+        fallbackText = "Campus Recycling Protocols:\n• Blue Bins: Clean plastics (PET 1, HDPE 2) & dry paper.\n• Green Bins: Strictly food leftovers, fruit rinds & compostable cafeteria napkins.\n• Yellow Stations: E-waste, batteries & charging cables at the Library quad.";
       } else if (lower.includes('faculty') || lower.includes('curriculum') || lower.includes('syllabus')) {
         fallbackText = "Faculty Recommendation: Incorporate a 15-minute campus biodiversity audit or solar energy efficiency challenge into your lab assessments.";
       } else if (lower.includes('points') || lower.includes('earn')) {
@@ -104,7 +137,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
     'How do I sort campus cafeteria waste?',
     'Faculty idea: how to add SDGs to syllabus?',
     'What rewards can I redeem with eco-points?',
-    'Tell me about the Tree Plantation Drive 2026',
+    'Explain UN SDG 12 vs SDG 13 on campus',
+    'How does campus solar microgrid work?',
   ];
 
   return (
@@ -123,18 +157,40 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                   Gemini 3.8
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">Grounded in UN SDGs 7, 11, 12, 13</p>
+              <p className="text-[10px] text-slate-400">Voice-ready UN SDG Sustainability Advisor</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              sounds.playClick();
-              onClose();
-            }}
-            className="text-slate-400 hover:text-white p-1 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setMessages([
+                  {
+                    id: `bot-${Date.now()}`,
+                    sender: 'bot',
+                    text: 'Chat history cleared. How can I help you today?',
+                    timestamp: 'Just now',
+                  },
+                ]);
+                sounds.playClick();
+              }}
+              className="text-slate-400 hover:text-rose-400 p-1 rounded-lg transition"
+              title="Clear chat"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.speechSynthesis) {
+                  window.speechSynthesis.cancel();
+                }
+                sounds.playClick();
+                onClose();
+              }}
+              className="text-slate-400 hover:text-white p-1 rounded-lg transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Message Feed */}
@@ -145,7 +201,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
               className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
             >
               <div
-                className={`p-3 rounded-2xl max-w-[88%] leading-relaxed ${
+                className={`p-3 rounded-2xl max-w-[90%] leading-relaxed relative group ${
                   m.sender === 'user'
                     ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-sm shadow-md'
                     : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-tl-sm'
@@ -163,6 +219,28 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onCl
                         {sdg}
                       </span>
                     ))}
+                  </div>
+                )}
+
+                {/* Bot Message Action Buttons (Read Aloud & Copy) */}
+                {m.sender === 'bot' && (
+                  <div className="flex items-center gap-2 mt-2 pt-1 border-t border-slate-800/60 text-slate-400">
+                    <button
+                      onClick={() => speakText(m.text)}
+                      className="hover:text-purple-400 flex items-center gap-1 text-[10px]"
+                      title="Read aloud"
+                    >
+                      {isSpeaking ? <VolumeX className="w-3 h-3 text-purple-400" /> : <Volume2 className="w-3 h-3" />}
+                      <span>{isSpeaking ? 'Stop Audio' : 'Listen'}</span>
+                    </button>
+                    <button
+                      onClick={() => copyText(m.text)}
+                      className="hover:text-slate-200 flex items-center gap-1 text-[10px]"
+                      title="Copy response"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copy</span>
+                    </button>
                   </div>
                 )}
               </div>

@@ -41,6 +41,7 @@ export interface CampusEvent {
   category: string;
   location: string;
   date: string;
+  isoDate?: string;
   startTime: string;
   endTime: string;
   capacity: number;
@@ -50,6 +51,8 @@ export interface CampusEvent {
   sdgGoals: string[];
   coverImage?: string;
   isRegistered?: boolean;
+  organizer?: string;
+  requirements?: string[];
 }
 
 export interface ResourceItem {
@@ -64,6 +67,8 @@ export interface ResourceItem {
   url: string;
   completed?: boolean;
   bookmarked?: boolean;
+  fullContent?: string[];
+  keyTakeaways?: string[];
 }
 
 export interface RewardItem {
@@ -74,6 +79,8 @@ export interface RewardItem {
   stock: number;
   imageUrl?: string;
   category: string;
+  pickupLocation?: string;
+  specs?: string[];
 }
 
 export interface RedeemedVoucher {
@@ -84,6 +91,7 @@ export interface RedeemedVoucher {
   pointsPaid: number;
   redeemedAt: string;
   isClaimed: boolean;
+  pickupLocation: string;
 }
 
 export interface MaintenanceReport {
@@ -97,6 +105,9 @@ export interface MaintenanceReport {
   reportedAt: string;
   assigneeName?: string;
   voiceMemoTranscript?: string;
+  audioUrl?: string;
+  photoUrl?: string;
+  staffNotes?: string;
 }
 
 export interface PointTransaction {
@@ -109,9 +120,23 @@ export interface PointTransaction {
 
 export interface QuizQuestion {
   id: number;
+  category: string;
   question: string;
   options: string[];
   correctIndex: number;
   explanation: string;
   sdgTag: string;
+}
+
+export interface CampusStation {
+  id: string;
+  name: string;
+  type: 'COMPOST' | 'SOLAR' | 'EWASTE' | 'WATER' | 'BIKE';
+  location: string;
+  zone: string;
+  fillLevelPercent: number;
+  status: 'OPTIMAL' | 'ATTENTION' | 'FULL';
+  coordinates: { x: number; y: number }; // Percentage position on campus map
+  pointsReward: number;
+  lastEmptied?: string;
 }

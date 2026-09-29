@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ResourceItem, ResourceType } from '../types';
-import { BookOpen, Download, Bookmark, CheckCircle2, Play, FileText, Search, ExternalLink, X } from 'lucide-react';
+import { BookOpen, Download, Bookmark, CheckCircle2, Play, FileText, Search, ExternalLink, X, ListChecks } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface ResourcesViewProps {
@@ -25,7 +25,12 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
       r.title.toLowerCase().includes(search.toLowerCase()) ||
       r.description.toLowerCase().includes(search.toLowerCase()) ||
       r.author.toLowerCase().includes(search.toLowerCase());
-    const matchesType = selectedType === 'ALL' || r.type === selectedType;
+    const matchesType =
+      selectedType === 'ALL'
+        ? true
+        : selectedType === 'BOOKMARKED'
+        ? r.bookmarked
+        : r.type === selectedType;
     return matchesSearch && matchesType;
   });
 
@@ -33,7 +38,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
     <div className="p-3.5 sm:p-4 space-y-4 overflow-y-auto">
       {/* Header */}
       <div className="pt-1">
-        <h2 className="text-xl font-black text-slate-900 tracking-tight">Resource Library</h2>
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">Resource & Learning Hub</h2>
         <p className="text-xs text-slate-500 font-medium">
           Authoritative guides, circular economy lectures & waste manuals
         </p>
@@ -47,13 +52,13 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search guides, research, authors..."
-          className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-3 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-sm"
+          className="w-full bg-white border border-slate-200 rounded-2xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-sm"
         />
       </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar text-xs">
-        {['ALL', 'PDF', 'VIDEO', 'GUIDE', 'ARTICLE'].map((t) => (
+        {['ALL', 'BOOKMARKED', 'PDF', 'VIDEO', 'GUIDE', 'ARTICLE'].map((t) => (
           <button
             key={t}
             onClick={() => {
@@ -66,19 +71,19 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {t === 'ALL' ? 'All Types' : t}
+            {t === 'ALL' ? 'All Guides' : t === 'BOOKMARKED' ? '★ Saved' : t}
           </button>
         ))}
       </div>
 
       {/* Resource Cards */}
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {filtered.map((item) => (
           <div
             key={item.id}
-            className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm hover:border-emerald-300 transition"
+            className="bg-white rounded-3xl p-4 border border-slate-200 shadow-sm hover:border-emerald-300 transition space-y-2.5"
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
                 <span
                   className={`text-[9px] font-black px-2 py-0.5 rounded-lg uppercase ${
@@ -92,6 +97,11 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                   {item.type}
                 </span>
                 <span className="text-[10px] text-slate-400 font-bold">• {item.category}</span>
+                {item.completed && (
+                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.2 rounded">
+                    ✓ COMPLETED
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-1">
@@ -112,12 +122,27 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
               </div>
             </div>
 
-            <h3 className="font-extrabold text-sm text-slate-900 leading-snug mb-1">
+            <h3 className="font-extrabold text-sm text-slate-900 leading-snug">
               {item.title}
             </h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium mb-3">
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
               {item.description}
             </p>
+
+            {/* Key Takeaways Preview */}
+            {item.keyTakeaways && (
+              <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 space-y-1">
+                <div className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider flex items-center gap-1">
+                  <ListChecks className="w-3 h-3 text-emerald-600" />
+                  <span>Key Principles</span>
+                </div>
+                {item.keyTakeaways.slice(0, 2).map((takeaway, i) => (
+                  <p key={i} className="text-[11px] text-slate-700 leading-tight">
+                    • {takeaway}
+                  </p>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
               <div>
@@ -133,10 +158,10 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                     sounds.playClick();
                     setActivePreview(item);
                   }}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1 transition"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition"
                 >
                   {item.type === 'VIDEO' ? <Play className="w-3.5 h-3.5 text-blue-600" /> : <FileText className="w-3.5 h-3.5 text-emerald-600" />}
-                  <span>{item.type === 'VIDEO' ? 'Watch' : 'Read'}</span>
+                  <span>{item.type === 'VIDEO' ? 'Watch Video' : 'Read Guide'}</span>
                 </button>
 
                 {/* Download */}
@@ -159,12 +184,12 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
 
       {/* Reader / Video Modal Preview */}
       {activePreview && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 text-white w-full max-w-sm rounded-3xl p-5 shadow-2xl relative">
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 text-white w-full max-w-sm rounded-3xl p-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-2 border-b border-slate-800 mb-3">
               <div>
                 <span className="text-[9px] uppercase font-bold text-emerald-400">
-                  {activePreview.type} Document Preview
+                  {activePreview.type} Document Viewer
                 </span>
                 <h3 className="font-extrabold text-sm text-white">{activePreview.title}</h3>
               </div>
@@ -182,20 +207,25 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                   <Play className="w-6 h-6 fill-blue-400 text-blue-400" />
                 </div>
                 <p className="text-xs font-bold text-white">Streaming Video Lecture</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Author: {activePreview.author}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Keynote by {activePreview.author}</p>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
-                  <div className="bg-blue-500 h-full w-1/3 animate-pulse" />
+                  <div className="bg-blue-500 h-full w-2/3 animate-pulse" />
                 </div>
               </div>
             ) : (
-              <div className="h-44 bg-slate-950 rounded-2xl border border-slate-800 p-3.5 text-xs text-slate-300 overflow-y-auto mb-3 font-serif leading-relaxed">
-                <p className="font-bold text-emerald-400 mb-1">
-                  Executive Summary — UN Campus Sustainability
+              <div className="h-52 bg-slate-950 rounded-2xl border border-slate-800 p-3.5 text-xs text-slate-300 overflow-y-auto mb-3 font-serif leading-relaxed space-y-2">
+                <p className="font-bold text-emerald-400">
+                  Executive Brief & Analysis
                 </p>
-                <p className="text-[11px] text-slate-400 mb-2">{activePreview.description}</p>
-                <p className="text-[11px]">
-                  "Institutions must transition from passive waste disposal toward circular material loops. By standardizing organic composting protocols across student unions and providing verified smart recycling depots, campus carbon outputs drop significantly..."
-                </p>
+                {activePreview.fullContent ? (
+                  activePreview.fullContent.map((paragraph, i) => (
+                    <p key={i} className="text-[11px] text-slate-300 leading-relaxed">
+                      {paragraph}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-[11px] text-slate-400">{activePreview.description}</p>
+                )}
               </div>
             )}
 
@@ -220,7 +250,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 border border-slate-700"
               >
                 <Download className="w-4 h-4" />
-                <span>Download PDF</span>
+                <span>Download File</span>
               </button>
             </div>
           </div>
